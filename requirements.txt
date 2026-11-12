@@ -6,7 +6,7 @@ channels==4.3.2
 daphne==4.2.3
 channels-redis==4.3.0
 psycopg[binary]==3.3.6
-redis==8.1.0
+redis==5.2.1
 google-auth==2.59.1
 requests==2.34.2
 drf-spectacular==0.30.0

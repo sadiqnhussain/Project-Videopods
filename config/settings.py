@@ -134,8 +134,11 @@ CHANNEL_REDIS_URL = os.getenv("REDIS_URL", "")
 if CHANNEL_REDIS_URL:
     CHANNEL_LAYERS = {
         "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {"hosts": [CHANNEL_REDIS_URL], "capacity": 2000, "expiry": 20},
+            "BACKEND": "channels_redis.pubsub.RedisPubSubChannelLayer",
+            "CONFIG": {
+                "hosts": [CHANNEL_REDIS_URL],
+                "capacity": 2000,
+            },
         }
     }
 else:
@@ -145,6 +148,7 @@ else:
             "CONFIG": {"capacity": 2000, "expiry": 20},
         }
     }
+
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
