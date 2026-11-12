@@ -1,6 +1,8 @@
 # Videopods
 
 Videopods is a browser-based video-meeting application built with Django, Django REST Framework, Django Channels, and WebRTC. It supports account registration and sign-in, Google sign-in, instant and scheduled meetings, host controls, meeting history, participant signaling, and in-browser recording controls.
+## Live Project Link
+https://videopods.onrender.com/
 
 > **Project status:** This repository represents a working portfolio project. It is not presented as a security-audited or production-hardened conferencing service.
 
