@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}
+  Create account — Videopods
+{% endblock %}
+{% block content %}
+  <section class="auth-shell">
+    <div class="auth-card">
+      <div class="eyebrow">START A CALL</div><h1>Create your account</h1><p class="muted">No complicated password rules. Just confirm your password.</p>
+      <form id="register-form">
+        <label>Username<input id="username" required maxlength="150" autocomplete="username" /></label><label>Email<input type="email" id="email" required autocomplete="email" /></label><label>Password<input type="password" id="password" required autocomplete="new-password" /></label><label>Confirm password<input type="password" id="confirm_password" required autocomplete="new-password" /></label><button class="button primary wide" type="submit">Create account</button><p id="register-error" class="form-error"></p>
+      </form>
+      <p class="auth-switch">
+        Already registered? <a href="{% url 'login' %}">Sign in</a>
+      </p>
+    </div>
+  </section>
+{% endblock %}
+{% block scripts %}
+  <script>
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const err = document.getElementById('register-error')
+      err.textContent = ''
+      try {
+        const r = await fetch(window.VP_URLS.authRegister, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ username: document.getElementById('username').value.trim(), email: document.getElementById('email').value.trim(), password: document.getElementById('password').value, confirm_password: document.getElementById('confirm_password').value }) })
+        const d = await readApiResponse(r)
+        if (!r.ok)
+          throw new Error(
+            Object.values(d || {})
+              .flat()
+              .join(' ') || 'Registration failed.'
+          )
+        saveTokens(d)
+        sessionStorage.removeItem('vp_intent')
+        sessionStorage.removeItem('vp_open_create')
+        window.location.href = window.VP_URLS.dashboard
+      } catch (x) {
+        err.textContent = x.message
+      }
+    })
+  </script>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Dashboard — Videopods{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
+{% block content %}
+<section class="dashboard-hero shell">
+  <div class="dashboard-hero-copy">
+    <div class="eyebrow">YOUR VIDEO WORKSPACE</div>
+    <h1>Meet, host, and manage everything in one place.</h1>
+    <p class="lead">Join a meeting instantly, create a new room, schedule ahead, and keep your meeting history organized without leaving your dashboard.</p>
+    <div class="join-card dashboard-join-card">
+      <label for="dashboard-meeting-code">Join a meeting</label>
+      <div class="join-row"><input id="dashboard-meeting-code" placeholder="Paste meeting URL or UUID" autocomplete="off"><button id="dashboard-join-btn" class="button primary join-button">Join</button></div>
+      <p id="dashboard-join-error" class="form-error"></p>
+    </div>
+    <button id="dashboard-create" class="button create-meeting-button dashboard-create-button">Create a meeting <span>→</span></button>
+  </div>
+      <div class="hero-image-container">
+      <img src="{% static '\hero-cover-img.png' %}" alt="Hero Cover" class="hero-cover-img" />
+    </div>
+</section>
+
+<section class="dashboard shell">
+  <div class="dashboard-head"><div><div class="eyebrow">MEETING CENTER</div><h2>My meetings</h2><p class="muted">Your upcoming schedules and attended meetings.</p></div></div>
+  <div id="upcoming-wrap" class="hidden"><div class="dashboard-section-title"><h3>Upcoming scheduled meetings</h3></div><div class="table-wrap"><table><thead><tr><th>Meeting</th><th>Date</th><th>Time</th><th>Duration</th><th>With whom</th><th>Actions</th></tr></thead><tbody id="upcoming-body"></tbody></table></div></div>
+  <div class="dashboard-section-title"><h3>Meeting history</h3><div class="history-actions"><button id="delete-all-history" class="button delete-button history-delete-all">Delete all history</button></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Meeting</th><th>Date</th><th>Time</th><th>Your attendance</th><th>Hosted by</th><th>Actions</th></tr></thead><tbody id="history-body"><tr><td colspan="6">Loading…</td></tr></tbody></table></div>
+</section>
+
+<div id="meeting-modal" class="modal hidden" aria-hidden="true"><div class="modal-card"><button id="modal-close" class="modal-close" aria-label="Close">×</button><div class="eyebrow">NEW MEETING</div><h2>Create a meeting</h2><label>Meeting subject<input id="meeting-subject" maxlength="200" placeholder="Optional subject"></label><label>With whom<input id="meeting-with-whom" maxlength="500" placeholder="Optional names or team"></label><div class="schedule-toggle"><button id="instant-mode" class="mode-button active">Create instant meeting</button><button id="schedule-mode" class="mode-button">Select date & time</button></div><div id="schedule-fields" class="schedule-fields hidden"><label>Date & time<input id="scheduled-for" type="datetime-local"></label><label>Duration<select id="meeting-duration" class="form-select"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="120">2 hours</option><option value="240">4 hours</option><option value="720">12 hours</option></select></label></div><p id="create-modal-error" class="form-error"></p><button id="modal-create" class="button create-meeting-button wide">Start now</button><div id="created-link" class="created-link hidden"><strong>Meeting link ready</strong><input id="created-url" readonly><div><button id="copy-created" class="button primary">Copy link</button><button id="join-created" class="button secondary">Start now</button></div></div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const idToken='00000000-0000-0000-0000-000000000000';
+  const meetingIdPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const meetingPageTemplate=window.VP_URLS.meetingPageTemplate;
+  const routeWithId=(template,id)=>template.replace(idToken,encodeURIComponent(id));
+  const escapeHtml=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const extractMeetingId=raw=>{
+    const value=raw.trim();
+    if(meetingIdPattern.test(value)) return value;
+    try {
+      const parsed=new URL(value,window.location.origin);
+      const dummyPath=new URL(routeWithId(meetingPageTemplate,idToken),window.location.origin).pathname;
+      const prefix=dummyPath.split(idToken)[0];
+      if(parsed.pathname.startsWith(prefix)) {
+        const candidate=parsed.pathname.slice(prefix.length).replace(/^\//,'').replace(/\/$/,'');
+        if(meetingIdPattern.test(candidate)) return candidate;
+      }
+    } catch {}
+    return null;
+  };
+  const modal=document.getElementById('meeting-modal'),modalError=document.getElementById('create-modal-error'),instant=document.getElementById('instant-mode'),schedule=document.getElementById('schedule-mode'),fields=document.getElementById('schedule-fields'),modalCreate=document.getElementById('modal-create');
+  let scheduled=false,createdJoinUrl='';
+  const duration=s=>{s=Math.max(0,Number(s)||0);const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);return h?`${h}h ${m}m`:m?`${m}m`:`${Math.round(s)}s`;};
+  const openModal=()=>{modal.classList.remove('hidden');modal.setAttribute('aria-hidden','false');modalError.textContent='';document.getElementById('created-link').classList.add('hidden');modalCreate.classList.remove('hidden');};
+  const closeModal=()=>{modal.classList.add('hidden');modal.setAttribute('aria-hidden','true');};
+  const goNotFound=()=>{window.location.href=window.VP_URLS.notFound;};
+
+  document.getElementById('dashboard-create').onclick=openModal;
+  document.getElementById('modal-close').onclick=closeModal;
+  document.getElementById('dashboard-join-btn').onclick=()=>{const error=document.getElementById('dashboard-join-error');error.textContent='';const raw=document.getElementById('dashboard-meeting-code').value.trim();const id=extractMeetingId(raw);if(!id){goNotFound();return;}window.location.href=routeWithId(meetingPageTemplate,id);};
+  const pendingJoin=sessionStorage.getItem('vp_join_intent');if(pendingJoin){document.getElementById('dashboard-meeting-code').value=pendingJoin;sessionStorage.removeItem('vp_join_intent');}
+  if(sessionStorage.getItem('vp_open_create')==='1'){sessionStorage.removeItem('vp_open_create');openModal();}
+  instant.onclick=()=>{scheduled=false;instant.classList.add('active');schedule.classList.remove('active');fields.classList.add('hidden');modalCreate.textContent='Start now';};
+  schedule.onclick=()=>{scheduled=true;schedule.classList.add('active');instant.classList.remove('active');fields.classList.remove('hidden');modalCreate.textContent='Create';};
+  modalCreate.onclick=async()=>{modalError.textContent='';const body={subject:document.getElementById('meeting-subject').value.trim(),with_whom:document.getElementById('meeting-with-whom').value.trim()};if(scheduled){const value=document.getElementById('scheduled-for').value;if(!value){modalError.textContent='Choose a date and time.';return;}const d=new Date(value);if(Number.isNaN(d.getTime())){modalError.textContent='Choose a valid date and time.';return;}body.scheduled_for=d.toISOString();body.duration_minutes=Number(document.getElementById('meeting-duration').value);}try{const r=await vpFetch(window.VP_URLS.meetingCreate,{method:'POST',body:JSON.stringify(body)});const d=await readApiResponse(r);if(!r.ok)throw new Error(Object.values(d||{}).flat().join(' ')||'Could not create meeting.');createdJoinUrl=d.join_url;document.getElementById('created-url').value=createdJoinUrl;document.getElementById('created-link').classList.remove('hidden');modalCreate.classList.add('hidden');document.getElementById('join-created').textContent=scheduled?'Done':'Start now';await load();}catch(e){modalError.textContent=e.message;}};
+  document.getElementById('copy-created').onclick=async()=>{try{await navigator.clipboard.writeText(createdJoinUrl);document.getElementById('copy-created').textContent='Copied';setTimeout(()=>document.getElementById('copy-created').textContent='Copy link',1500);}catch{modalError.textContent='Copy is unavailable.';}};
+  document.getElementById('join-created').onclick=()=>{if(!scheduled&&createdJoinUrl)location.href=createdJoinUrl;else closeModal();};
+  async function load(){
+    const [h,u]=await Promise.all([vpFetch(window.VP_URLS.meetingHistory),vpFetch(window.VP_URLS.meetingUpcoming)]);
+    if(h.ok){const rows=await h.json();document.getElementById('history-body').innerHTML=rows.length?rows.map(x=>`<tr><td>${escapeHtml(x.subject)}</td><td>${escapeHtml(x.date)}</td><td>${escapeHtml(x.time)}</td><td>${duration(x.duration_seconds)}</td><td>${escapeHtml(x.hosted_by)}</td><td><button class="button delete-button delete-history" data-id="${escapeHtml(x.meeting_id)}">Delete</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty-table">No attended meetings yet.</td></tr>';document.querySelectorAll('.delete-history').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this meeting from your history?'))return;const r=await vpFetch(routeWithId(window.VP_URLS.meetingHistoryDeleteTemplate,b.dataset.id),{method:'DELETE'});if(r.ok)load();});}
+    if(u.ok){const rows=await u.json(),wrap=document.getElementById('upcoming-wrap'),body=document.getElementById('upcoming-body');if(rows.length){wrap.classList.remove('hidden');body.innerHTML=rows.map(x=>{const d=new Date(x.scheduled_for),can=x.can_start,id=escapeHtml(x.meeting_id);return `<tr><td>${escapeHtml(x.subject||'Untitled meeting')}</td><td>${d.toLocaleDateString()}</td><td>${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td><td>${escapeHtml(x.duration_minutes||'—')} min</td><td>${escapeHtml(x.with_whom||'—')}</td><td class="history-actions">${can?`<button class="button primary start-meeting" data-id="${id}">Start</button>`:'<span class="muted">Scheduled</span>'}<button class="button cancel-meeting" data-id="${id}">Cancel</button></td></tr>`}).join('');body.querySelectorAll('.start-meeting').forEach(b=>b.onclick=async()=>{const r=await vpFetch(routeWithId(window.VP_URLS.meetingStartTemplate,b.dataset.id),{method:'POST'});const d=await readApiResponse(r);if(r.ok)location.href=d.join_url;else alert(d.detail||'Could not start meeting.');});body.querySelectorAll('.cancel-meeting').forEach(b=>b.onclick=async()=>{if(!confirm('Cancel this scheduled meeting? This cannot be undone.'))return;const r=await vpFetch(routeWithId(window.VP_URLS.meetingCancelTemplate,b.dataset.id),{method:'POST'});if(r.ok)load();else{const d=await readApiResponse(r);alert(d.detail||'Could not cancel meeting.');}});}else{wrap.classList.add('hidden');}}
+  }
+  document.getElementById('delete-all-history').onclick=async()=>{if(!confirm('Delete all of your meeting history? This cannot be undone.'))return;const r=await vpFetch(window.VP_URLS.meetingHistoryDeleteAll,{method:'DELETE'});if(r.ok)load();};
+  loadCurrentUser().then(user=>{if(!user)window.location.href=window.VP_URLS.login;});
+  load();
+})();
+</script>
+{% endblock %}

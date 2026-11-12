@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+  Videopods — Simple video meetings
+{% endblock %}
+{% block content %}
+  <section class="hero shell">
+    <div class="hero-copy">
+      <div class="eyebrow">FAST • PRIVATE • LOW-BANDWIDTH</div>
+      <h1>Meet clearly, even when the internet isn’t.</h1>
+      <p class="lead">Videopods keeps the media path peer-to-peer, starts in Saver mode, and gives hosts reliable local recording without uploading meeting video.</p>
+      <div class="join-card">
+        <label for="meeting-code">Join a meeting</label>
+        <div class="join-row">
+          <input id="meeting-code" placeholder="Paste meeting URL or UUID" autocomplete="off" /><button id="join-btn" class="button primary join-button">Join</button>
+        </div>
+        <p id="landing-error" class="form-error"></p>
+      </div>
+      <button id="create-btn" class="button create-meeting-button">Create a meeting <span>→</span></button>
+    </div>
+
+    <div class="hero-image-container">
+      <img src="{% static '\hero-cover-img.png' %}" alt="Hero Cover" class="hero-cover-img" />
+    </div>
+  </section>
+
+  <div id="meeting-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-card">
+      <button id="modal-close" class="modal-close" aria-label="Close">×</button>
+      <div class="eyebrow">NEW MEETING</div><h2>Create a meeting</h2>
+      <label>Meeting subject<input id="meeting-subject" maxlength="200" placeholder="Optional subject" /></label>
+      <label>With whom<input id="meeting-with-whom" maxlength="500" placeholder="Optional names or team" /></label>
+      <div class="schedule-toggle">
+        <button id="instant-mode" class="mode-button active">Create instant meeting</button><button id="schedule-mode" class="mode-button">Select date & time</button>
+      </div>
+      <div id="schedule-fields" class="schedule-fields hidden">
+        <label>Date & time<input id="scheduled-for" type="datetime-local" /></label><label>
+          Duration<select id="meeting-duration">
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60" selected>1 hour</option>
+            <option value="120">2 hours</option>
+            <option value="240">4 hours</option>
+            <option value="720">12 hours</option>
+          </select>
+        </label>
+      </div>
+      <p id="create-modal-error" class="form-error"></p>
+      <button id="modal-create" class="button create-meeting-button wide">Start now</button>
+      <div id="created-link" class="created-link hidden">
+        <strong>Meeting link ready</strong><input id="created-url" readonly />
+        <div>
+          <button id="copy-created" class="button primary">Copy link</button><button id="join-created" class="button secondary">Join now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <section class="features shell">
+    <article>
+      <b>01</b><h3>Low-data first</h3><p>Small capture defaults, bitrate caps, and adaptive degradation keep calls usable on weak links.</p>
+    </article>
+    <article>
+      <b>02</b><h3>Host control</h3><p>Only the verified meeting host can end a session or record it locally.</p>
+    </article>
+    <article>
+      <b>03</b><h3>Resilient recording</h3><p>Five-second recording chunks are persisted to IndexedDB before they are assembled for download.</p>
+    </article>
+  </section>
+{% endblock %}
+{% block scripts %}
+  <script>
+    ;(() => {
+      const joinBtn = document.getElementById('join-btn'),
+        createBtn = document.getElementById('create-btn')
+      const error = document.getElementById('landing-error'),
+        modal = document.getElementById('meeting-modal'),
+        modalError = document.getElementById('create-modal-error')
+      const instant = document.getElementById('instant-mode'),
+        schedule = document.getElementById('schedule-mode'),
+        fields = document.getElementById('schedule-fields'),
+        modalCreate = document.getElementById('modal-create')
+      let scheduled = false,
+        createdJoinUrl = ''
+      async function requireAuth() {
+        const user = await loadCurrentUser()
+        if (!user) {
+          loginRedirect()
+          return false
+        }
+        return true
+      }
+      function openModal() {
+        modal.classList.remove('hidden')
+        modal.setAttribute('aria-hidden', 'false')
+        modalError.textContent = ''
+        document.getElementById('created-link').classList.add('hidden')
+        modalCreate.classList.remove('hidden')
+      }
+      function closeModal() {
+        modal.classList.add('hidden')
+        modal.setAttribute('aria-hidden', 'true')
+      }
+      createBtn.onclick = async () => {
+        if (!(await requireAuth())) return
+        openModal()
+      }
+      document.getElementById('modal-close').onclick = closeModal
+      instant.onclick = () => {
+        scheduled = false
+        instant.classList.add('active')
+        schedule.classList.remove('active')
+        fields.classList.add('hidden')
+        modalCreate.textContent = 'Start now'
+      }
+      schedule.onclick = () => {
+        scheduled = true
+        schedule.classList.add('active')
+        instant.classList.remove('active')
+        fields.classList.remove('hidden')
+        modalCreate.textContent = 'Create'
+      }
+      modalCreate.onclick = async () => {
+        modalError.textContent = ''
+        const body = { subject: document.getElementById('meeting-subject').value.trim(), with_whom: document.getElementById('meeting-with-whom').value.trim() }
+        if (scheduled) {
+          const value = document.getElementById('scheduled-for').value
+          if (!value) {
+            modalError.textContent = 'Choose a date and time.'
+            return
+          }
+          const localDate = new Date(value)
+          if (Number.isNaN(localDate.getTime())) {
+            modalError.textContent = 'Choose a valid date and time.'
+            return
+          }
+          body.scheduled_for = localDate.toISOString()
+          body.duration_minutes = Number(document.getElementById('meeting-duration').value)
+        }
+        try {
+          const r = await vpFetch(window.VP_URLS.meetingCreate, { method: 'POST', body: JSON.stringify(body) })
+          const d = await readApiResponse(r)
+          if (!r.ok) {
+            if (r.status === 401) {
+              loginRedirect()
+              return
+            }
+            throw new Error(
+              Object.values(d || {})
+                .flat()
+                .join(' ') || 'Could not create meeting.'
+            )
+          }
+          createdJoinUrl = d.join_url
+          document.getElementById('created-url').value = createdJoinUrl
+          document.getElementById('created-link').classList.remove('hidden')
+          modalCreate.classList.add('hidden')
+          document.getElementById('join-created').textContent = scheduled ? 'Done' : 'Start now'
+        } catch (e) {
+          modalError.textContent = e.message
+        }
+      }
+      document.getElementById('copy-created').onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(createdJoinUrl)
+          document.getElementById('copy-created').textContent = 'Copied'
+          setTimeout(() => (document.getElementById('copy-created').textContent = 'Copy link'), 1500)
+        } catch {
+          modalError.textContent = 'Copy is unavailable in this browser.'
+        }
+      }
+      document.getElementById('join-created').onclick = () => {
+        if (createdJoinUrl && !scheduled) location.href = createdJoinUrl
+        else closeModal()
+      }
+      joinBtn.onclick = async () => {
+        error.textContent = ''
+        const raw = document.getElementById('meeting-code').value.trim()
+        if (!raw) {
+          error.textContent = 'Enter a meeting URL or meeting ID.'
+          return
+        }
+        sessionStorage.setItem('vp_join_intent', raw)
+        if (await requireAuth()) {
+          location.href = window.VP_URLS.dashboard
+        }
+      }
+    })()
+  </script>
+{% endblock %}

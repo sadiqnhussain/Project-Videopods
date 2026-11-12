@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: videopods
+      POSTGRES_USER: videopods
+      POSTGRES_PASSWORD: videopods
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+  web:
+    build: .
+    command: sh -c "python manage.py migrate && daphne -b 0.0.0.0 -p 8000 config.asgi:application"
+    environment:
+      DEBUG: "0"
+      SECRET_KEY: change-this
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      PUBLIC_BASE_URL: http://localhost:8000
+      WEBSOCKET_MEETING_PREFIX: /ws/meetings/
+      DATABASE_URL: postgresql://videopods:videopods@db:5432/videopods
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+volumes:
+  postgres_data:

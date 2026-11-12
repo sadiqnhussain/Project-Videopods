@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}
+  Meeting ended — Videopods
+{% endblock %}
+{% block content %}
+  <section class="auth-shell">
+    <div class="auth-card centered">
+      <div class="ended-icon">✓</div>
+      <h1>Meeting ended</h1>
+      <p class="muted">The host ended this meeting. Your local recording, if active, remains in this browser until you download it.</p>
+      <a class="button primary wide" href="{% url 'landing' %}">Back to home</a>
+    </div>
+  </section>
+{% endblock %}

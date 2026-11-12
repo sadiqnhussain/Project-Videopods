@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}
+  Sign in — Videopods
+{% endblock %}
+{% block content %}
+  <section class="auth-shell">
+    <div class="auth-card">
+      <div class="eyebrow">WELCOME BACK</div><h1>Sign in</h1><p class="muted">Use your Videopods account to join or host meetings.</p>
+      <form id="login-form">
+        <label>Email<input type="email" id="email" required autocomplete="email" /></label><label>Password<input type="password" id="password" required autocomplete="current-password" /></label><button class="button primary wide" type="submit">Sign in</button><p id="login-error" class="form-error"></p>
+      </form>
+      <div class="divider">
+        <span>or</span>
+      </div>
+      <div id="google-button" class="google-wrap"></div>
+      <p class="auth-switch">
+        No account? <a href="{% url 'register' %}">Create one</a>
+      </p>
+    </div>
+  </section>
+{% endblock %}
+{% block scripts %}
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    const loginForm = document.getElementById('login-form'),
+      loginError = document.getElementById('login-error'),
+      emailInput = document.getElementById('email'),
+      passwordInput = document.getElementById('password')
+    async function afterAuth() {
+      sessionStorage.removeItem('vp_intent')
+      sessionStorage.removeItem('vp_open_create')
+      location.href = window.VP_URLS.dashboard
+    }
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      loginError.textContent = ''
+      try {
+        const r = await fetch(window.VP_URLS.authToken, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: emailInput.value.trim(), password: passwordInput.value }) })
+        const d = await readApiResponse(r)
+        if (!r.ok) throw new Error(d.detail || 'Sign in failed.')
+        saveTokens(d)
+        await afterAuth()
+      } catch (x) {
+        loginError.textContent = x.message
+      }
+    })
+    window.addEventListener('load', async () => {
+      try {
+        const r = await fetch(window.VP_URLS.authGoogleConfig)
+        const cfg = await readApiResponse(r)
+        if (!cfg.google_client_id) return
+        const render = () => {
+          if (window.google?.accounts?.id) {
+            google.accounts.id.initialize({
+              client_id: cfg.google_client_id,
+              callback: async (response) => {
+                try {
+                  const r = await fetch(window.VP_URLS.authGoogle, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id_token: response.credential }) })
+                  const d = await readApiResponse(r)
+                  if (!r.ok) throw new Error(d.detail || 'Google sign-in failed.')
+                  saveTokens(d)
+                  await afterAuth()
+                } catch (x) {
+                  loginError.textContent = x.message
+                }
+              }
+            })
+            google.accounts.id.renderButton(document.getElementById('google-button'), { theme: 'outline', size: 'large', width: 370 })
+          }
+        }
+        render()
+        setTimeout(render, 700)
+      } catch {}
+    })
+  </script>
+{% endblock %}

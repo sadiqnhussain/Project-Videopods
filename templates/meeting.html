@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}
+  {{ meeting_subject }} — Videopods
+{% endblock %}
+{% block body_class %}
+  meeting-page
+{% endblock %}
+{% block content %}
+  <div class="meeting-shell" data-meeting-id="{{ meeting_id }}" data-access-state="{{ meeting_access_state }}" data-access-message="{{ meeting_access_message|escapejs }}">
+    <div class="meeting-head">
+      <div class="meeting-title">
+        <div class="live-pill">
+          <i></i> LIVE
+        </div>
+        <h1>{{ meeting_subject }}</h1>
+        <p id="connection-status">Connecting securely…</p>
+      </div>
+      <div class="meeting-actions">
+        <button id="copy-link" class="icon-button">Copy invite</button>
+        <button id="whatsapp-link" class="icon-button">WhatsApp</button>
+        <button id="email-link" class="icon-button">Email</button>
+        <button id="leave-btn" class="icon-button participant-leave">Leave</button>
+        <button id="end-btn" class="button danger hidden">End meeting</button>
+      </div>
+    </div>
+    <div id="video-grid" class="video-grid square-mode">
+      <div class="empty-state">
+        <div class="loader"></div>
+        <p id="meeting-wait-message">Starting your camera…</p>
+      </div>
+    </div>
+    <div class="control-dock">
+      <button id="mic-btn" class="control active">🎙<span>Mute</span></button>
+      <button id="cam-btn" class="control active">▣<span>Camera</span></button>
+      <label class="control select-control">
+        ⚙<select id="quality" aria-label="Call quality">
+          <option value="saver">Call · Saver 320p</option>
+          <option value="low">Call · 480p</option>
+          <option value="hd">Call · HD 720p</option>
+        </select>
+      </label>
+      <label class="control select-control recording-select host-only hidden">
+        ●<select id="recording-quality" aria-label="Recording resolution">
+          <option value="saver">Rec · Saver 320p</option>
+          <option value="low">Rec · 480p</option>
+          <option value="hd">Rec · HD 720p</option>
+          <option value="mobile">Rec · Mobile 540×960</option>
+        </select>
+      </label>
+      <button id="layout-btn" class="control">▦<span>9:16</span></button>
+      <button id="split-vertical-btn" class="control split-control">▥<span>Split 9:16</span></button>
+      <button id="split-square-btn" class="control split-control">▤<span>Split square</span></button>
+      <button id="record-btn" class="control host-only hidden">●<span>Record</span></button>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+{% endblock %}
+{% block scripts %}
+  <script src="{% static 'js/meeting.js' %}"></script>
+{% endblock %}

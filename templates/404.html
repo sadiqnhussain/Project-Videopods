@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}
+  Meeting not found — Videopods
+{% endblock %}
+{% block content %}
+  <section class="not-found-shell">
+    <div class="not-found-card">
+      <div class="eyebrow">404</div><h1>Meeting not found</h1><p class="muted">This meeting link is invalid or no longer exists. Check the link with your host and try again.</p><a class="button primary" href="{% url 'landing' %}">Back to Videopods</a>
+    </div>
+  </section>
+{% endblock %}
